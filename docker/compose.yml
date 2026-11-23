@@ -1,0 +1,45 @@
+# Test environment for DaffyZoom: a SQL Server holding an inflated AdventureWorksDW2022, with
+# queries that take from five seconds to several minutes - the kind DaffyZoom exists to cache.
+#
+#   powershell -File scripts/setup-testdb.ps1      everything: download, start, restore, inflate
+#   docker compose -f docker/compose.yml up -d     just start it again (data is kept)
+#
+# Published on 14340, not 1433: 1433 is where DaffyZoom itself listens, and DaffyTee's own test
+# server uses 14333. The password is for this throwaway local container and nothing else; override
+# it in docker/.env (git-ignored).
+#
+# CPU and memory are capped on purpose. Uncapped, a 20-core workstation finishes the "slow" queries
+# too quickly to be useful, and with all the data in memory every query is CPU-bound. 4 CPUs and
+# 6 GB (about 4.8 GB of buffer pool) is closer to a modest reporting server. The fact tables are
+# larger than that, so the big scans read from disk.
+#
+# Data lives in a named volume and restarts with Docker; only "down -v" starts from scratch.
+
+name: daffyzoom
+
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    cpus: 4
+    mem_limit: 6g
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-DaffyZoom!Dev2026}
+    ports:
+      - "14340:1433"
+    volumes:
+      - sql-data:/var/opt/mssql
+      - ./seed:/seed:ro
+      - ./backups:/backups:ro
+      - ./queries:/queries:ro
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+volumes:
+  sql-data:

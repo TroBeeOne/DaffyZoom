@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DaffyZoom</RootNamespace>
+    <AssemblyName>daffyzoom</AssemblyName>
+    <!-- ScriptDom ships its messages in a dozen languages; DaffyZoom's own text is English. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- A gateway with many sessions allocating at once: a heap per core rather than one for all,
+         sized to the load as it goes (DATAS), so a quiet DaffyZoom stays small. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+  </PropertyGroup>
+
+  <!-- One RID-agnostic tool package serves every platform: there is no native library to carry. -->
+  <PropertyGroup>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>daffyzoom</ToolCommandName>
+    <PackageId>DaffyZoom</PackageId>
+    <Version>0.1.4</Version>
+    <Authors>Scott Traube, TroBeeOne LLC</Authors>
+    <Company>TroBeeOne LLC</Company>
+    <Copyright>Copyright (c) 2026 Scott Traube and TroBeeOne LLC</Copyright>
+    <Title>DaffyZoom</Title>
+    <Description>A result cache for SQL Server and Azure SQL that sits in front of the database as a gateway. Clients connect to DaffyZoom as if it were SQL Server. Everything is relayed byte for byte, except repeats of slow queries on tables that rarely change, which are answered from an encrypted local cache in a fraction of the time. Fails closed: whenever it is unsure, the query goes to SQL Server.</Description>
+    <PackageTags>sql-server;azure-sql;cache;result-cache;tds;proxy;gateway;performance;reporting;dotnet-tool</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://trobee.one</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/TroBeeOne/DaffyZoom</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>0.1.4: the ODBC driver and OLE DB provider that ship with Windows (Driver={SQL Server}, Provider=SQLOLEDB), which speak TDS 7.1, connect whatever their login holds: one with a long application name or database, for one, was refused as a password change. A refused login now reaches them as "Login failed for user ...", not as "SQL Server version 6.5 and all previous versions are no longer supported". DaffyZoom follows a USE in their sessions, so a write after one flushes its database in ttl mode, and daffyzoom.sessions shows where they are. They are still relayed, never cached. Connect them with Encrypt=no; DaffyZoom encrypts the session anyway. A client that hangs up before logging in is logged with the reason, such as not trusting DaffyZoom's certificate. The login log line names the client library and its option flags, and JDBC 13.4's USERAGENT feature. A login mapped to Entra ID refuses a client older than TDS 7.4, with the reason in the log. 0.1.3: built for many clients at once. A popular answer is read from the disk once: the first hit leaves it decrypted in memory, and every hit after it shares that copy rather than reading, decrypting and decompressing the file again (--memory-cache-mb, by default the smaller of 1 GB and an eighth of memory; the least recently hit make room). In tracked mode, DaffyZoom's own connections for the check on every hit are capped (--check-connections, default 8): a hit that finds them all busy waits for one instead of logging in again, and identical checks still waiting share one. Sixty hits at once on a tracked answer now cost SQL Server 10 logins, not 61. Writing the log never holds up a query: the console and the log file are each written on a thread of their own, so a console window someone has clicked into no longer stalls every session; one that falls far behind leaves routine lines out and says how many (log.dropped). --quiet now leaves each session's open and close lines off the console, as its help always said. Server garbage collection is on. 0.1.2: runs sent back to back, as GO 4 in SSMS sends them, are served sooner. Each run came in a millisecond after the one before it ended - before that run had been analyzed, and before its answer had been saved - so a new query was first served on its fifth run. Now, in ttl mode, a run is copied while the slow run before it is still being analyzed, and kept only if that run makes it one to keep; and a run that comes in while its answer is being saved waits for the save (at most a tenth of what the query took, within --hit-deadline-ms) rather than going to SQL Server. A new query is served from its third run, back to back or not. Tracked mode is unchanged, since it must resolve a query's tables before copying it. A db set that changes no setting - the same command again, or the database spelled another way - no longer ends what is cached for the database; any change still does.
+
+0.1.1: database names are matched in any case, as SQL Server matches them. In 0.1.0 a policy, or a flush, had to spell the database exactly as the session did: a session spelling it Sales was not cached under a policy for SALES, and EXEC daffyzoom.flush 'SALES' did not end its answers. Now policies, flushes and writes seen all match in any case; cached answers stay apart by spelling, for case-sensitive servers. db set says when no login's target is on the server it names (SERVER is the SQL Server, not a DaffyZoom login), as do the startup banner and daffyzoom.databases; the banner says when no database is cached yet, with a db set line made from a login's target. The watch list gives the db set line for a query whose database has no policy; daffyzoom.flush says when no policy caches the database; daffyzoom.status and :sessions show the database a session is in now, not the one it logged in to. A db set that fails part-way no longer changes the policy a running DaffyZoom serves by. Whitespace that cannot change an answer is no longer part of a batch's key: spaces, tabs and line breaks at its end (SSMS's line before a GO, a blank line at the end of the window), and spaces or tabs before its first line; line breaks before it still count, since they move the line numbers in messages. New --log-retention, on by default at 24h: log files (--log-file) and transcripts (--transcript) are deleted once nothing has been written to them for that long, and a log file without {date} is moved to NAME.old and started afresh; off keeps them. More db set examples on this page.
+
+0.1.0: first release. A result cache in front of SQL Server and Azure SQL, as a gateway: slow queries that repeat exactly are answered from an encrypted local copy, everything else is relayed byte for byte, and whenever DaffyZoom is unsure the query goes to SQL Server. Nothing is cached until a database has a policy: ttl mode (max age, a flush from the ETL job, a watermark poll, scheduled flushes, blackout windows, writes seen through DaffyZoom) or tracked mode (Change Tracking checked on every hit, as the client's own login). Prepared statements (sp_prepexec) are served with a handle SQL Server issued for the client's own session. Administration in T-SQL (EXEC daffyzoom.help), including daffyzoom.tracking, which shows Change Tracking as the caller's login sees it and the GRANT that fixes what is missing. The cache keeps within --cache-max-gb and what its disk can spare. Checked end to end against SQL Server 2022 with twelve drivers.</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <!--
+    The package page gets NUGET.md rather than the repository README, which is written for someone
+    with the source checked out. THIRD-PARTY-NOTICES.txt travels with the package because a tool
+    package bundles its dependencies' binaries, which is redistribution. (As in DaffyTee.)
+  -->
+  <ItemGroup>
+    <None Include="..\..\NUGET.md" Pack="true" PackagePath="README.md" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="\" />
+    <!-- 128 x 128, made from daffyzoom.png with its corners transparent. -->
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DaffyZoom.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.140.0" />
+    <PackageReference Include="System.IO.Hashing" Version="10.0.14" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
+  </ItemGroup>
+
+</Project>

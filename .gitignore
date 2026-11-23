@@ -1,0 +1,32 @@
+# Not published: reference material and internal design notes.
+CONTEXT/
+DaffyZoom-Design.md
+
+bin/
+obj/
+.vs/
+*.user
+nupkg/
+*.nupkg
+*.snupkg
+transcripts/
+TestResults/
+*.log
+
+# Certificates and keys never belong in the repository (daffyzoom cert export, --cert-file).
+*.pfx
+*.cer
+*.pem
+*.key
+*.snk
+
+# Local settings.
+.env
+.claude/
+
+# The test database: the downloaded backup, and local overrides of the container's password.
+docker/backups/
+docker/.env
+
+# Calibration results are machine-specific.
+docker/queries/calibration-*.txt

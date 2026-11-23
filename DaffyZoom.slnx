@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DaffyZoom/DaffyZoom.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DaffyZoom.Tests/DaffyZoom.Tests.csproj" />
+  </Folder>
+</Solution>

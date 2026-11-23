@@ -1,0 +1,5 @@
+# Shell scripts run inside Linux containers and must keep Unix line endings.
+*.sh text eol=lf
+
+# Test fixtures are base64 of real client payloads; keep them byte-exact.
+tests/**/Fixtures/* -text
