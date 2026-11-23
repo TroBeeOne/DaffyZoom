@@ -1,3 +1,5 @@
+<img src="icon.png" alt="DaffyZoom" width="128" align="right">
+
 # DaffyZoom
 
 A result cache for SQL Server and Azure SQL, in front of the database as a gateway.
